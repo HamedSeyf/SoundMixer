@@ -12,7 +12,6 @@ import UIKit
 protocol SoundPlayerViewDelegate: AnyObject {
     func playPauseButtonTapped()
     func clearButtonTapped()
-    func isPlaying() -> Bool
 }
 
 class SoundPlayerView: UIView {
@@ -26,8 +25,10 @@ class SoundPlayerView: UIView {
     private static let ButtonsHorizontalOffset: CGFloat = 40.0
     private static let BackgroundBorderRadius: CGFloat = 10.0
     
-    required init() {
+    required init(delegate: SoundPlayerViewDelegate) {
         super.init(frame: .zero)
+        
+        self.delegate = delegate
         
         backgroundColor = UIColor.AppColors.playerBackground.color
         layer.borderWidth = SoundPlayerView.ViewsBorderWidth
@@ -42,9 +43,7 @@ class SoundPlayerView: UIView {
         clearButton = PlayerButton(borderWidth: SoundPlayerView.ViewsBorderWidth)
         let clearBtnTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.handleClearButtonTap(_:)))
         clearButton.addGestureRecognizer(clearBtnTapGestureRecognizer)
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            self?.clearButton.updateUI(imageName: "ButtonClear")
-        }
+        clearButton.updateUI(imageName: "ButtonClear")
         addSubview(clearButton)
     }
     
@@ -61,11 +60,8 @@ class SoundPlayerView: UIView {
         clearButton.frame = CGRect(x: centerX - SoundPlayerView.ButtonsHorizontalOffset - SoundPlayerView.ButtonsSize, y: centerY - round(0.5 * SoundPlayerView.ButtonsSize), width: SoundPlayerView.ButtonsSize, height: SoundPlayerView.ButtonsSize)
     }
     
-    func updateUI(presenter: SoundPlayerViewDelegate) {
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            self?.delegate = presenter
-            self?.playPauseButton.updateUI(imageName: presenter.isPlaying() ? "ButtonPause" : "ButtonPlay")
-        }
+    @MainActor func updateUI(playbackIsPaused: Bool) {
+        playPauseButton.updateUI(imageName: playbackIsPaused ? "ButtonPlay" : "ButtonPause")
     }
 }
 

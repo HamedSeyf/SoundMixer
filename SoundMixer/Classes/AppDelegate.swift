@@ -12,13 +12,8 @@ import UIKit
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     
-    var window: UIWindow?
-    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        let homeVC = HomeViewController()
-        window = UIWindow()
-        window!.rootViewController = homeVC
-        window!.makeKeyAndVisible()
+        SoundMixerRouter.shared.setupAndShowRootVC()
         return true
     }
 }

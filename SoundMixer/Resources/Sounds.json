@@ -1,73 +1,46 @@
 [
     {
+        "_id": 0,
         "imageAssetName": "Birds",
         "soundAssetName": "birds"
     },
     {
+        "_id": 1,
         "imageAssetName": "Flute",
         "soundAssetName": "flute"
     },
     {
+        "_id": 2,
         "imageAssetName": "Lounge",
         "soundAssetName": "lounge"
     },
     {
+        "_id": 3,
         "imageAssetName": "MusicBox",
         "soundAssetName": "musicbox"
     },
     {
+        "_id": 4,
         "imageAssetName": "Ocean",
         "soundAssetName": "ocean"
     },
     {
+        "_id": 5,
         "imageAssetName": "Orchestral",
         "soundAssetName": "orchestral"
     },
     {
+        "_id": 6,
         "imageAssetName": "Piano",
         "soundAssetName": "piano"
     },
     {
+        "_id": 7,
         "imageAssetName": "Rain",
         "soundAssetName": "rain"
     },
     {
-        "imageAssetName": "Wind",
-        "soundAssetName": "wind"
-    },
-    {
-        "imageAssetName": "Birds",
-        "soundAssetName": "birds"
-    },
-    {
-        "imageAssetName": "Flute",
-        "soundAssetName": "flute"
-    },
-    {
-        "imageAssetName": "Lounge",
-        "soundAssetName": "lounge"
-    },
-    {
-        "imageAssetName": "MusicBox",
-        "soundAssetName": "musicbox"
-    },
-    {
-        "imageAssetName": "Ocean",
-        "soundAssetName": "ocean"
-    },
-    {
-        "imageAssetName": "Orchestral",
-        "soundAssetName": "orchestral"
-    },
-    {
-        "imageAssetName": "Piano",
-        "soundAssetName": "piano"
-    },
-    {
-        "imageAssetName": "Rain",
-        "soundAssetName": "rain"
-    },
-    {
+        "_id": 8,
         "imageAssetName": "Wind",
         "soundAssetName": "wind"
     }

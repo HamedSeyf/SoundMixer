@@ -9,6 +9,10 @@ import Foundation
 import UIKit
 
 
+protocol SoundMixerViewDelegate: SoundPlayerViewDelegate, SoundViewCellDelegate {
+}
+
+
 protocol SoundMixerViewAnimationProtocol: AnyObject {
     func animatePlayerView(onScreen: Bool)
 }
@@ -27,16 +31,16 @@ class SoundMixerView: UIView {
     private static let SoundPlayerMaxWidth: CGFloat = 400.0
     private static let SoundCollectionViewVerticalOffset: CGFloat = 20.0
     
-    required init() {
+    required init(delegate: SoundMixerViewDelegate) {
         super.init(frame: .zero)
         
         backgroundView = BackgroundView()
         addSubview(backgroundView)
         
-        soundCollectionView = SoundCollectionView()
+        soundCollectionView = SoundCollectionView(delegate: delegate)
         addSubview(soundCollectionView)
         
-        soundPlayerView = SoundPlayerView()
+        soundPlayerView = SoundPlayerView(delegate: delegate)
         addSubview(soundPlayerView)
     }
     
@@ -44,11 +48,14 @@ class SoundMixerView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func updateUI(allSounds: [SoundModelPresenter]?, soundPlayerPresenter: SoundPlayerViewDelegate) {
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            self?.soundCollectionView.updateUI(allSounds: allSounds)
-            self?.soundPlayerView.updateUI(presenter: soundPlayerPresenter)
-        }
+    @MainActor func updateUI(allSounds: [any SoundModelToView], playbackIsPaused: Bool) {
+        let hasPlayingSongs: Bool = allSounds.first(where: { SoundModelToView in
+            return SoundModelToView.isPlaying
+        }) != nil
+    
+        soundCollectionView.updateUI(allSounds: allSounds)
+        soundPlayerView.updateUI(playbackIsPaused: playbackIsPaused)
+        animatePlayerView(onScreen: hasPlayingSongs)
     }
     
     override func layoutSubviews() {
@@ -78,16 +85,14 @@ extension SoundMixerView: SoundMixerViewAnimationProtocol {
 
 extension SoundMixerView {
     
-    private func startPlayerAnimation() {
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            guard let originalFrame = self?.soundPlayerView.frame else { return }
-            guard let targetY: CGFloat = self?.getPlayerViewMinY(onScreen: self?.playerIsOnScreen ?? false) else { return }
-            
-            let targetFrame = CGRect(x: originalFrame.minX, y: targetY, width: originalFrame.width, height: originalFrame.height)
-            UIView.animate(withDuration: 0.8, animations: { [weak self] in
-                self?.soundPlayerView.frame = targetFrame
-            })
-        }
+    @MainActor private func startPlayerAnimation() {
+        let originalFrame = soundPlayerView.frame
+        let targetY: CGFloat = getPlayerViewMinY(onScreen: playerIsOnScreen)
+        
+        let targetFrame = CGRect(x: originalFrame.minX, y: targetY, width: originalFrame.width, height: originalFrame.height)
+        UIView.animate(withDuration: 0.8, animations: { [weak self] in
+            self?.soundPlayerView.frame = targetFrame
+        })
     }
     
     private func getPlayerViewMinY(onScreen: Bool) -> CGFloat {

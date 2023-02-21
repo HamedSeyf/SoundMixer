@@ -40,9 +40,7 @@ class PlayerButton: UIView {
         imageView.frame = CGRect(x: round((frame.width - imageSize) * 0.5), y: round((frame.height - imageSize) * 0.5), width: imageSize, height: imageSize)
     }
     
-    func updateUI(imageName: String) {
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            self?.imageView.image = UIImage(named: imageName)?.withRenderingMode(.alwaysTemplate)
-        }
+    @MainActor func updateUI(imageName: String) {
+        imageView.image = UIImage(named: imageName)?.withRenderingMode(.alwaysTemplate)
     }
 }

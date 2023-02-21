@@ -25,7 +25,7 @@ extension HomeViewController {
             // There are some other VCs blocking this VC (possibly another instance of SoundsViewController) which means we need to ignore this tap
             guard self == self?.topMostVC() else { return }
             
-            SoundsViewController.presentSoundsViewController()
+            _ = SoundMixerRouter.shared.presentSoundsVC()
         }, noTapCallback: { [weak self] in
             let alert = UIAlertController(title: nil, message: "We wish we could terminate the app for you.\nUnfortunately this is against Apple's submission acceptance criteria!", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "Ok", style: .default))

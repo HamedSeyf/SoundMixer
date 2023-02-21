@@ -11,5 +11,5 @@ import RealmSwift
 
 @objcMembers class PlaylistModel: Object, Codable {
     
-    dynamic var songs = List<SoundModel>()
+    dynamic var songs = List<Int>()
 }

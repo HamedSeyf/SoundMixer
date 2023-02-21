@@ -11,7 +11,12 @@ import AVFoundation
 
 class SoundManager {
     
-    private let dispatchQueue = DispatchQueue(label: "SoundManagerQueue")
+    enum SoundManagerError: Error {
+        case fileNotFound(fileName: String)
+        case audioPlaybackFailed(error: Error)
+    }
+    
+    private let dispatchQueue = DispatchQueue(label: "\(SoundManager.self)Queue")
     private var players = [AVAudioPlayer]()
     private var audioSession: AVAudioSession = {
         let sharedInstance = AVAudioSession.sharedInstance()
@@ -39,22 +44,26 @@ class SoundManager {
         }
     }
     
-    func playSound(_ soundFileName: String, checkExistingPlayback: Bool = true, fileExtenstion: String = "caf", completion: (()->Void)? = nil) {
-        dispatchQueue.async { [weak self] in
-            defer {
-                completion?()
+    func playSound(_ soundFileName: String, checkExistingPlayback: Bool = true, fileExtenstion: String = "caf") async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            dispatchQueue.async { [weak self] in
+                guard let url = SoundManager.getSoundURL(soundFileName, fileExtenstion: fileExtenstion) else {
+                    return continuation.resume(throwing: SoundManagerError.fileNotFound(fileName: soundFileName))
+                }
+                
+                if checkExistingPlayback && self?.players.first(where: { $0.url == url }) != nil { return continuation.resume() }
+                
+                do {
+                    let player = try AVAudioPlayer(contentsOf: url)
+                    _ = try self?.audioSession.setActive(true)
+                    self?.players.append(player)
+                    player.numberOfLoops = -1
+                    player.play()
+                    return continuation.resume()
+                } catch let error {
+                    return continuation.resume(throwing: SoundManagerError.audioPlaybackFailed(error: error))
+                }
             }
-            
-            guard let url = SoundManager.getSoundURL(soundFileName, fileExtenstion: fileExtenstion) else { return }
-            
-            if checkExistingPlayback && self?.players.first(where: { $0.url == url }) != nil { return }
-            
-            guard let player = try? AVAudioPlayer(contentsOf: url) else { return }
-            guard let _ = try? self?.audioSession.setActive(true) else { return }
-            
-            self?.players.append(player)
-            player.numberOfLoops = -1
-            player.play()
         }
     }
     
@@ -81,6 +90,15 @@ class SoundManager {
         }
     }
     
+    func stopPlayingAllSound() {
+        dispatchQueue.async { [weak self] in
+            self?.players.forEach { player in
+                player.stop()
+            }
+            self?.players.removeAll()
+        }
+    }
+    
     func playingSoundURLs() async -> [URL] {
         dispatchQueue.sync {
             return players.filter{ $0.url != nil }.map{ $0.url! }
@@ -89,5 +107,19 @@ class SoundManager {
     
     static func getSoundURL(_ soundFileName: String, fileExtenstion: String = "caf") -> URL? {
         return Bundle.main.url(forResource: soundFileName, withExtension: fileExtenstion)
+    }
+}
+
+// MARK: SoundManager description
+
+extension SoundManager.SoundManagerError: LocalizedError {
+    
+    public var errorDescription: String? {
+        switch self {
+        case .fileNotFound(let fileName):
+            return "Sound file not found: \n\(fileName)"
+        case .audioPlaybackFailed(let error):
+            return "Failed to play audio with error:\n\(error.localizedDescription)"
+        }
     }
 }

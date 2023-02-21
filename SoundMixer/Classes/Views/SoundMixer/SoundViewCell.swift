@@ -11,9 +11,7 @@ import UIKit
 
 protocol SoundViewCellDelegate: AnyObject {
     
-    func thumbnailTapped()
-    func getThumbnailImageName(selected: Bool) -> String?
-    func isSoundSelected() -> Bool
+    func handleSongTap(tappedSong: any SoundModelToView)
 }
 
 
@@ -25,6 +23,7 @@ class SoundViewCell: UICollectionViewCell {
     }
     
     weak var delegate: SoundViewCellDelegate?
+    private var soundData: (any SoundModelToView)?
     private var thumbNailImage: UIImageView!
     private var ropeImage: UIImageView!
     private var state: VisualState = .normal {
@@ -78,23 +77,18 @@ class SoundViewCell: UICollectionViewCell {
         delegate = nil
     }
     
-    func updateUI() {
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            guard let selected = self?.delegate?.isSoundSelected() else {
-                self?.state = .normal
-                return
-            }
-            
-            self?.state = (selected ? .selected : .normal)
-            
-            guard let imageName = self?.delegate?.getThumbnailImageName(selected: (self?.state == .selected)), let imageView = UIImage(named: imageName) else { assert(false, "Image not found.") }
-            
-            self?.thumbNailImage.image = imageView
-        }
+    @MainActor func updateUI(soundData: any SoundModelToView) {
+        self.soundData = soundData
+        state = (soundData.isPlaying ? .selected : .normal)
+        
+        guard let imageName = soundData.getImageName(selected: (state == .selected)), let imageView = UIImage(named: imageName) else { assert(false, "Image not found.") }
+        
+        thumbNailImage.image = imageView
     }
     
     @objc func handleTap(_ sender: UITapGestureRecognizer? = nil) {
-        delegate?.thumbnailTapped()
+        guard let soundData = soundData else { return }
+        delegate?.handleSongTap(tappedSong: soundData)
     }
     
     static func minimumRequiredSize() -> CGSize {
@@ -106,13 +100,11 @@ class SoundViewCell: UICollectionViewCell {
 
 extension SoundViewCell {
     
-    private func startThumbnailAnimation() {
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            let scaleFactor: CGFloat = (self?.state == .selected ? SoundViewCell.SelectedAnimationScaleFactor : 1.0)
-            let scaledTransform = CGAffineTransformScale(CGAffineTransformIdentity, scaleFactor, scaleFactor);
-            UIView.animate(withDuration: SoundViewCell.SelectedAnimationDuration, animations: {
-                self?.thumbNailImage.transform = scaledTransform
-            })
-        }
+    @MainActor private func startThumbnailAnimation() {
+        let scaleFactor: CGFloat = (state == .selected ? SoundViewCell.SelectedAnimationScaleFactor : 1.0)
+        let scaledTransform = CGAffineTransformScale(CGAffineTransformIdentity, scaleFactor, scaleFactor);
+        UIView.animate(withDuration: SoundViewCell.SelectedAnimationDuration, animations: { [weak self] in
+            self?.thumbNailImage.transform = scaledTransform
+        })
     }
 }

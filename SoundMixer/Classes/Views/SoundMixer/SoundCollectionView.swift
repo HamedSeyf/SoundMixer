@@ -13,14 +13,16 @@ import UIKit
 class SoundCollectionView: UICollectionView {
     
     private var layoutObject = SoundMixerLayout()
+    private weak var viewDelegate: SoundViewCellDelegate?
     
     private static let CellReuseIdentifier = "SoundViewCellIdentifier"
     private static let AdjacentColumnsVerticalDsiplacement: CGFloat = 20.0
     private static let AdjacentColumnsMinHorizontalSpace: CGFloat = 20.0
     
-    required init() {
+    required init(delegate: SoundViewCellDelegate) {
         super.init(frame: .zero, collectionViewLayout: layoutObject)
         
+        viewDelegate = delegate
         self.backgroundColor = .clear
         self.isScrollEnabled = true
         self.bounces = true
@@ -34,11 +36,8 @@ class SoundCollectionView: UICollectionView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func updateUI(allSounds: [SoundModelPresenter]?) {
-        DispatchQueue.dispatchMainIfNeeded { [weak self] in
-            self?.layoutObject.sounds = allSounds
-            self?.layoutObject.updateUI()
-        }
+    @MainActor func updateUI(allSounds: [any SoundModelToView]) {
+        layoutObject.updateUI(allSounds: allSounds)
     }
     
     override func layoutSubviews() {
@@ -54,16 +53,14 @@ extension SoundCollectionView {
     
     class SoundMixerLayout: UICollectionViewLayout {
         
-        var sounds: [SoundModelPresenter]? {
+        var sounds: [any SoundModelToView]? {
             didSet {
-                guard sounds != oldValue else { return }
-                
                 constructSoundsMap()
             }
         }
-        private(set) var soundsMap: [IndexPath : SoundModelPresenter]? {
+        private(set) var soundsMap: [IndexPath : any SoundModelToView]? {
             didSet {
-                guard soundsMap != oldValue else { return }
+                guard !SoundMixerLayout.soundMapsAreEqual(lhs: soundsMap, rhs: oldValue) else { return }
                 
                 invalidateLayout()
                 collectionView?.reloadData()
@@ -74,7 +71,7 @@ extension SoundCollectionView {
         func constructSoundsMap() {
             guard let sounds = sounds, let (_, rowCount) = getSectionAndRowCount() else { return (soundsMap = nil) }
             
-            var soundsArray = [IndexPath : SoundModelPresenter]()
+            var soundsArray = [IndexPath : any SoundModelToView]()
             sounds.indices.forEach { soundIndex in
                 let sound = sounds[soundIndex]
                 let index = IndexPath(row: soundIndex % rowCount, section: soundIndex / rowCount)
@@ -128,14 +125,16 @@ extension SoundCollectionView {
             return unionRect.size
         }
         
-        func updateUI() {
-            DispatchQueue.dispatchMainIfNeeded { [weak self] in
-                guard let collectionView = self?.collectionView else { return }
-                
-                let visibleIndexPaths = collectionView.indexPathsForVisibleItems
-                visibleIndexPaths.forEach { indexPath in
-                    (collectionView.cellForItem(at: indexPath) as? SoundViewCell)?.updateUI()
-                }
+        @MainActor func updateUI(allSounds: [any SoundModelToView]) {
+            // TODO: This also might need its own queue
+            sounds = allSounds
+            
+            guard let collectionView = collectionView else { return }
+
+            let visibleIndexPaths = collectionView.indexPathsForVisibleItems
+            for indexPath in visibleIndexPaths {
+                guard let soundData = soundsMap?[indexPath] else { continue }
+                (collectionView.cellForItem(at: indexPath) as? SoundViewCell)?.updateUI(soundData: soundData)
             }
         }
         
@@ -144,7 +143,6 @@ extension SoundCollectionView {
             
             let sectionHeightOffset = (indexPath.section % 2 == 0 ? 0.0 : SoundCollectionView.AdjacentColumnsVerticalDsiplacement)
             let minimumCellSize = SoundViewCell.minimumRequiredSize()
-//            let actualCellSize = collectionView?.frame.width
             let x = AdjacentColumnsMinHorizontalSpace + (minimumCellSize.width + AdjacentColumnsMinHorizontalSpace) * CGFloat(indexPath.section)
             let y = sectionHeightOffset + CGFloat(indexPath.row) * minimumCellSize.height
             
@@ -164,6 +162,18 @@ extension SoundCollectionView {
             let sectionCount = (allSounds.count + rowCount - 1) / rowCount
             return (sectionCount, rowCount)
         }
+        
+        private static func soundMapsAreEqual(lhs: [IndexPath : any SoundModelToView]?, rhs: [IndexPath : any SoundModelToView]?) -> Bool {
+            guard lhs != nil || rhs != nil else { return true }
+            
+            guard let lhs = lhs, let rhs = rhs, lhs.count == rhs.count else { return false }
+            
+            for (key, value) in lhs {
+                guard let otherValue = rhs[key], value.isEqualTo(other: otherValue) else { return false }
+            }
+            
+            return true
+        }
     }
 }
 
@@ -172,9 +182,9 @@ extension SoundCollectionView {
 extension SoundCollectionView.SoundMixerLayout: UICollectionViewDelegate {
     
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-        guard let cell = cell as? SoundViewCell else { return }
-        
-        cell.updateUI()
+        guard let cell = cell as? SoundViewCell, let soundData = soundsMap?[indexPath] else { return }
+
+        cell.updateUI(soundData: soundData)
     }
 }
 
@@ -194,9 +204,9 @@ extension SoundCollectionView.SoundMixerLayout: UICollectionViewDataSource {
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: SoundCollectionView.CellReuseIdentifier, for: indexPath)
-        if let cell = cell as? SoundViewCell, let soundPresenter = soundsMap?[indexPath] {
-            cell.delegate = soundPresenter
-            cell.updateUI()
+        if let collectionView = collectionView as? SoundCollectionView, let cell = cell as? SoundViewCell, let soundData = soundsMap?[indexPath] {
+            cell.delegate = collectionView.viewDelegate
+            cell.updateUI(soundData: soundData)
         }
         return cell
     }
